@@ -1,0 +1,9 @@
+@HOST_NAME = localhost
+@PORT = 6001
+@HOST = {{HOST_NAME}}:{{PORT}}
+@CONTENT_TYPE = application/json
+@API=api
+
+POSt http://{{HOST}}/{{API}}
+Content-Type: {{CONTENT_TYPE}}
+
