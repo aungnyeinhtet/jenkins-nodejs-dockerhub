@@ -29,12 +29,16 @@ pipeline {
                     def deleteImages = 'docker image prune -a --force'
                     def dockerRun = "docker run -d --name nodejs-app -p 3000:3000 earic/nodejs-app:${GIT_BRANCH}"
                     println "${dockerRun}"
-                    sshagent(['VM-APP']) {
-                        sh returnStatus: true, script: "ssh -o StrictHostKeyChecking=no root@157.245.205.170 ${stopContainer} "
-                        sh returnStatus: true, script: "ssh -o StrictHostKeyChecking=no root@157.245.205.170 ${deleteContName}"
-                        sh returnStatus: true, script: "ssh -o StrictHostKeyChecking=no root@157.245.205.170 ${deleteImages}"
-                        sh returnStatus: true, script: "ssh -o StrictHostKeyChecking=no root@157.245.205.170 ${dockerRun}"
-                    }
+                    sshagent(['VM-APP']) {  // Use your actual SSH credentials ID
+                    sh '''
+                    ssh -o StrictHostKeyChecking=no root@157.245.205.170 <<EOF
+                    docker pull nodejs-app:main
+                    docker stop nodejs-app || true
+                    docker rm nodejs-app || true
+                    docker run -d --name nodejs-app -p 3000:3000 earic/nodejs-app
+                    EOF
+                    '''
+                }
                 }
             }
         }
