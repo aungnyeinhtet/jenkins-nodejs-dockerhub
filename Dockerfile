@@ -7,6 +7,6 @@ RUN yarn install && yarn global add prisma
 
 COPY . .
 
-EXPOSE 6001
+EXPOSE 3000
 
 CMD ["yarn", "start:dev"]
