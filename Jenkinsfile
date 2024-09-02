@@ -1,34 +1,49 @@
 pipeline {
     agent any
-    stages{
-        stage("checkout"){
-            steps{
-                checkout scm
+    environment {
+                DOCKER_CRED = credentials('dockerhub-earic')
             }
-        }
-
-       
-
-        stage("Build"){
-            steps{
-                sh 'npm start:dev'
-            }
-        }
-
-        stage("Build Image"){
-            steps{
-                sh 'docker build -t node-test .'
-            }
-        }
-        stage('Docker Push') {
+            
+    stages {
+        stage('Build image') {
             steps {
-                withCredentials([usernamePassword(credentialsId: 'docker_cred', passwordVariable: 'DOCKERHUB_PASSWORD', usernameVariable: 'DOCKERHUB_USERNAME')]) {
-                    sh 'docker login -u $DOCKERHUB_USERNAME -p $DOCKERHUB_PASSWORD'
-                    sh 'docker tag node-test earic/test'
-                    sh 'docker push earic/test'
-                    sh 'docker logout'
+                    sh 'docker build -t earic/nodejs-app:${GIT_BRANCH} .'
+                    sh 'docker images'
+                }
+        }
+
+        stage('Push Dockerhub') {
+            steps {
+                withCredentials([usernamePassword(credentialsId: 'dockerhub-earic', usernameVariable: 'DOCKER_CRED_USR', passwordVariable: 'DOCKER_CRED_PSW')]) { 
+                    sh 'docker login -u ${DOCKER_CRED_USR} -p ${DOCKER_CRED_PSW}' 
+                    sh 'docker push earic/nodejs-app:${GIT_BRANCH}' }
+                }
+        }
+
+        stage('Deploy to Server') {
+            steps {
+                script {
+                    def nodeJS = 'nodejs-app'
+                    def stopContainer = "docker stop ${nodeJS}"
+                    def deleteContName = "docker rm ${nodeJS}"
+                    def deleteImages = 'docker image prune -a --force'
+                    def dockerRun = "docker run -d --name nodejs-app -p 3000:3000 earic/nodejs-app:${GIT_BRANCH}"
+                    println "${dockerRun}"
+                    sshagent(['VM-APP']) {
+                        sh returnStatus: true, script: "ssh -o StrictHostKeyChecking=no root@157.245.205.170 ${stopContainer} "
+                        sh returnStatus: true, script: "ssh -o StrictHostKeyChecking=no root@157.245.205.170 ${deleteContName}"
+                        sh returnStatus: true, script: "ssh -o StrictHostKeyChecking=no root@157.245.205.170 ${deleteImages}"
+                        sh returnStatus: true, script: "ssh -o StrictHostKeyChecking=no root@157.245.205.170 ${dockerRun}"
+                    }
                 }
             }
+        }
+
+        
+    }
+    post {
+        always {
+                sh 'docker image prune -a --force' 
         }
     }
 }
